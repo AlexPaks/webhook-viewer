@@ -1,0 +1,1615 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Webhook Response Viewer</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --border:#e2e8f0;
+      --shadow: 0 10px 30px rgba(15,23,42,.08);
+      --primary:#2563eb;
+      --success:#16a34a;
+      --danger:#dc2626;
+      --warning:#f59e0b;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .dark{
+      --bg:#0b1220;
+      --card:#0f172a;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --border:#1f2a44;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --primary:#60a5fa;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background:var(--bg);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      background:linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92));
+      color:#e5e7eb;
+      padding:14px 16px;
+      border-bottom: 1px solid rgba(226,232,240,.12);
+      backdrop-filter: blur(8px);
+    }
+    .dark header{
+      background:linear-gradient(180deg, rgba(2,6,23,0.92), rgba(2,6,23,0.86));
+      border-bottom: 1px solid rgba(148,163,184,.12);
+    }
+    .wrap{max-width:1200px;margin:0 auto;}
+    .hrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .brand{
+      display:flex; align-items:center; gap:10px; margin-right:auto;
+      font-weight:700;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      background:rgba(226,232,240,.10);
+      border:1px solid rgba(226,232,240,.12);
+      font-size:12px;
+    }
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--warning)}
+    .dot.ok{background:var(--success)}
+    .dot.bad{background:var(--danger)}
+    .btn{
+      appearance:none; border:1px solid rgba(226,232,240,.18);
+      background:rgba(226,232,240,.08);
+      color:#e5e7eb;
+      padding:8px 10px; border-radius:10px;
+      font-size:13px; cursor:pointer;
+      display:inline-flex; align-items:center; gap:8px;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{background:rgba(226,232,240,.12); border-color:rgba(226,232,240,.26)}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{
+      background: rgba(37,99,235,.25);
+      border-color: rgba(37,99,235,.45);
+    }
+    .btn.primary:hover{
+      background: rgba(37,99,235,.32);
+      border-color: rgba(37,99,235,.60);
+    }
+    .btn.ghost{
+      background:transparent;
+      border-color: rgba(226,232,240,.18);
+    }
+
+    main{padding:16px}
+    .grid{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+      header{position:static}
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .card h3{
+      margin:0;
+      font-size:13px;
+      color:var(--muted);
+      letter-spacing:.2px;
+      font-weight:700;
+    }
+    .card .section{
+      padding:14px;
+      border-bottom:1px solid var(--border);
+    }
+    .card .section:last-child{border-bottom:none}
+    label{display:block; font-size:12px; color:var(--muted); margin:10px 0 6px}
+    input[type="text"], textarea, select{
+      width:100%;
+      border:1px solid var(--border);
+      background:transparent;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      outline:none;
+      font-size:13px;
+    }
+    textarea{
+      min-height:140px;
+      font-family:var(--mono);
+      font-size:12px;
+      line-height:1.45;
+      resize:vertical;
+    }
+    .row{display:flex; gap:10px; align-items:center}
+    .row > *{flex:1}
+    .mini{
+      font-size:11px; color:var(--muted);
+      line-height:1.35;
+    }
+    .kvs{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:8px;
+    }
+    .kv{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px;
+      background:rgba(15,23,42,.03);
+    }
+    .dark .kv{background:rgba(148,163,184,.06)}
+    .kv .k{font-size:11px;color:var(--muted)}
+    .kv .v{font-size:12px; margin-top:4px; font-family:var(--mono);}
+
+    .toolbar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .tabs{
+      display:flex; gap:8px; align-items:center;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:6px;
+      background:rgba(15,23,42,.03);
+    }
+    .dark .tabs{background:rgba(148,163,184,.06)}
+    .tab{
+      padding:7px 10px;
+      border-radius:10px;
+      font-size:13px;
+      cursor:pointer;
+      border:1px solid transparent;
+      color:var(--muted);
+      user-select:none;
+    }
+    .tab.active{
+      color:var(--text);
+      background:var(--card);
+      border-color:var(--border);
+      box-shadow: 0 6px 16px rgba(15,23,42,.08);
+    }
+    .search{
+      display:flex; gap:8px; align-items:center; flex:1;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:8px 10px;
+      min-width: 240px;
+    }
+    .search input{
+      border:none; padding:0; outline:none; background:transparent;
+      color:var(--text);
+      flex:1; font-size:13px;
+    }
+    .badge{
+      font-size:11px;
+      color:var(--muted);
+      padding:4px 8px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      white-space:nowrap;
+    }
+    .viewer{
+      height: calc(100vh - 170px);
+      min-height: 560px;
+      display:flex;
+      flex-direction:column;
+      position:relative;
+    }
+    @media (max-width: 980px){
+      .viewer{height:auto; min-height:520px}
+    }
+    .pane{flex:1; display:none;}
+    .pane.active{display:block;}
+    iframe{
+      width:100%;
+      height:100%;
+      border:none;
+      background:#fff;
+    }
+    .dark iframe{background:#0b1220}
+    pre{
+      margin:0;
+      height:100%;
+      overflow:auto;
+      padding:14px;
+      font-family:var(--mono);
+      font-size:12px;
+      line-height:1.55;
+      background:rgba(15,23,42,.03);
+    }
+    .dark pre{background:rgba(148,163,184,.06)}
+    mark{
+      padding:0 .12em;
+      border-radius:.25em;
+      background: #fde68a;
+      color:#111827;
+    }
+    mark.active{
+      outline:2px solid var(--primary);
+      background:#fbbf24;
+    }
+    .hint{
+      padding:10px 14px;
+      font-size:12px;
+      color:var(--muted);
+      border-top:1px dashed var(--border);
+      background:rgba(15,23,42,.02);
+    }
+    .dark .hint{background:rgba(148,163,184,.04)}
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      font-size:12px;
+      overflow:hidden;
+      border:1px solid var(--border);
+      border-radius:12px;
+    }
+    th, td{
+      padding:8px 10px;
+      border-bottom:1px solid var(--border);
+      vertical-align:top;
+      word-break:break-word;
+    }
+    th{color:var(--muted); text-align:left; background:rgba(15,23,42,.03)}
+    .dark th{background:rgba(148,163,184,.06)}
+    tr:last-child td{border-bottom:none}
+    .muted{color:var(--muted)}
+    .toggleRow{display:flex; align-items:center; gap:10px; margin-top:12px}
+    .toggleRow .btn{padding:6px 10px; border-radius:12px}
+
+    .loadingOverlay{
+      position:absolute;
+      inset: 68px 0 44px 0; /* below toolbar section, above hint */
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      background: color-mix(in oklab, var(--card) 84%, transparent);
+      backdrop-filter: blur(3px);
+      z-index: 5;
+    }
+    .dark .loadingOverlay{
+      background: color-mix(in oklab, var(--card) 76%, transparent);
+    }
+    .loadingBox{
+      max-width: 560px;
+      width: 100%;
+      border:1px solid var(--border);
+      background: color-mix(in oklab, var(--card) 92%, transparent);
+      border-radius:16px;
+      padding:14px 14px;
+      box-shadow: 0 18px 40px rgba(15,23,42,.10);
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .dark .loadingBox{box-shadow: 0 18px 40px rgba(0,0,0,.35)}
+    .spinner{
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 3px solid color-mix(in oklab, var(--primary) 18%, var(--border));
+      border-top-color: var(--primary);
+      animation: spin .9s linear infinite;
+      flex: 0 0 auto;
+      margin-top: 2px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loadingTitle{font-weight:700; font-size:13px; margin:0}
+    .loadingSub{margin-top:4px; font-size:12px; color:var(--muted); font-family:var(--mono)}
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="hrow">
+      <div class="brand">
+        <span style="font-size:18px">📡</span>
+        <span>Webhook Response Viewer</span>
+        <span class="pill"><span id="statusDot" class="dot"></span><span id="statusText">Ready</span></span>
+      </div>
+
+      <span class="pill">⏱ <span id="ms">—</span> ms</span>
+      <span class="pill">📦 <span id="size">—</span></span>
+
+      <button class="btn primary" id="sendBtn">🚀 Send</button>
+      <button class="btn" id="sendAgainBtn" title="Send the same payload again" disabled>🔁 Send again</button>
+      <button class="btn" id="copyBtn" title="Copy raw response" disabled>📋 Copy</button>
+      <button class="btn" id="downloadBtn" title="Download response as HTML" disabled>💾 Download</button>
+      <button class="btn ghost" id="themeBtn" title="Toggle dark/light">🌙</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <!-- LEFT: Request panel -->
+    <div class="card">
+      <div class="section">
+        <h3>Webhook</h3>
+
+        <label>Endpoint</label>
+        <select id="endpointSelect"></select>
+
+        <div class="mini muted" style="margin-top:8px">
+          URL: <span id="endpointUrlPreview" style="font-family:var(--mono)"></span>
+        </div>
+
+        <div class="toggleRow" style="margin-top:10px">
+          <button class="btn" id="endpointToggleBtn" type="button" aria-expanded="false" aria-controls="endpointWrap">+</button>
+          <div class="mini muted">Edit endpoints</div>
+        </div>
+
+        <div id="endpointWrap" style="display:none">
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Name</label>
+              <input type="text" id="endpointName" placeholder="e.g. Reddit" />
+            </div>
+            <div>
+              <label>URL</label>
+              <input type="text" id="endpointUrl" placeholder="https://..." />
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:10px">
+            <button class="btn" id="endpointAddBtn" type="button">➕ Add</button>
+            <button class="btn" id="endpointUpdateBtn" type="button">💾 Update</button>
+            <button class="btn" id="endpointDeleteBtn" type="button">🗑 Delete</button>
+            <span class="mini muted" id="endpointHint" style="margin-left:auto"></span>
+          </div>
+          <div class="mini muted" style="margin-top:8px">
+            Tip: Endpoints are saved in your browser (LocalStorage) so they stay after refresh.
+          </div>
+        </div>
+
+        <label style="margin-top:12px">Message</label>
+        <input type="text" id="message" value="Hello from Webhook Viewer" />
+
+        <label style="margin-top:12px">Limit Records</label>
+        <input type="text" id="records" value="20" inputmode="numeric" />
+
+        <label style="margin-top:12px">Prompt type</label>
+        <select id="promptType">
+          <option value="market">Go-To-Market Strategist</option>
+          <option value="reseach" selected>Market Research</option>
+          <option value="growth">Mobile Growth Expert</option>
+          <option value="travel">Travel Industry Marketing Expert</option>
+          <option value="story">Storytelling &amp; Brand Expert</option>
+          <option value="money">Monetization Strategist</option>
+          <option value="comp">Competitive Positioning Analyst</option>
+          <option value="investor_gtm">Investor-Ready GTM Strategy</option>
+        </select>
+
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label>Method</label>
+            <select id="method">
+              <option selected>POST</option>
+              <option>GET</option>
+            </select>
+          </div>
+          <div>
+            <label>Content-Type</label>
+            <select id="contentType">
+              <option value="application/json">application/json</option>
+              <option value="text/plain">text/plain</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toggleRow">
+          <button class="btn" id="bodyToggleBtn" type="button" aria-expanded="false" aria-controls="bodyWrap">+</button>
+          <div class="mini muted">Body (advanced)</div>
+        </div>
+
+        <div id="bodyWrap" style="display:none">
+          <label style="margin-top:10px">Body (to send)</label>
+          <textarea id="body">{
+  "message": "Hello from Webhook Viewer",
+  "records": 20,
+  "prompt_type": "reseach",
+  "ts": "{{now}}"
+}</textarea>
+          <div class="mini" style="margin-top:8px">
+            Tip: When collapsed, the body is generated automatically from the Message field.
+            If you edit this body, it will be sent as-is for POST requests.
+          </div>
+        </div>
+
+        <div class="mini" style="margin-top:8px">
+          Note: If your webhook does not allow CORS, the browser may block this request.
+          In that case, use a small proxy (server / Cloudflare Worker / Vercel) to call the webhook.
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Response Summary</h3>
+        <div class="kvs">
+          <div class="kv">
+            <div class="k">HTTP Status</div>
+            <div class="v" id="httpStatus">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Content-Type</div>
+            <div class="v" id="respType">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Received At</div>
+            <div class="v" id="receivedAt">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Matches</div>
+            <div class="v" id="matches">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Response Headers</h3>
+        <div class="mini muted" style="margin-top:6px">Populated after a successful request.</div>
+        <div style="margin-top:10px; overflow:auto; max-height:240px">
+          <table>
+            <thead>
+              <tr><th style="width:38%">Header</th><th>Value</th></tr>
+            </thead>
+            <tbody id="headersTbody">
+              <tr><td class="muted" colspan="2">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Viewer -->
+    <div class="card viewer">
+      <div class="section">
+        <div class="row" style="align-items:baseline; margin-bottom:10px">
+          <h3 style="margin:0">Response Data</h3>
+          <div class="mini muted" id="responseTitle" style="text-align:right"></div>
+        </div>
+        <div class="toolbar">
+          <div class="tabs" role="tablist" aria-label="Views">
+            <div class="tab active" data-tab="preview">🖼️ Preview</div>
+            <div class="tab" data-tab="raw">💻 Raw</div>
+            <div class="tab" data-tab="json">🧩 JSON</div>
+            <div class="tab" data-tab="history">🕘 History</div>
+          </div>
+
+          <div class="search" title="Search inside response (includes Preview and Raw)">
+            🔎
+            <input id="q" placeholder="Search in response..." />
+            <span class="badge" id="countBadge">0</span>
+            <button class="btn" id="prevBtn" style="padding:6px 8px" disabled>⬆</button>
+            <button class="btn" id="nextBtn" style="padding:6px 8px" disabled>⬇</button>
+            <button class="btn" id="clearSearchBtn" style="padding:6px 8px" disabled>✖</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="loadingOverlay" class="loadingOverlay" aria-live="polite" aria-busy="false">
+        <div class="loadingBox">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <p class="loadingTitle" id="loadingTitle">Waiting for response…</p>
+            <div class="loadingSub" id="loadingSub"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane active" id="pane-preview">
+        <iframe id="frame" sandbox="allow-same-origin"></iframe>
+      </div>
+
+      <div class="pane" id="pane-raw">
+        <pre id="raw"></pre>
+      </div>
+
+      <div class="pane" id="pane-json">
+        <pre id="json"></pre>
+      </div>
+
+      <div class="pane" id="pane-history">
+        <div style="padding:14px; overflow:auto; height:100%">
+          <div class="mini muted" style="margin-bottom:10px">
+            Stored locally in your browser (LocalStorage). Click an item to restore request + response.
+          </div>
+          <div id="historyList" style="display:flex; flex-direction:column; gap:10px"></div>
+          <div id="historyEmpty" class="mini muted">No history yet.</div>
+          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
+            <button class="btn" id="clearHistoryBtn">🧹 Clear history</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint">
+        Tip: Search highlights matches in both Preview and Raw. Use ⬆/⬇ to jump between matches.
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ---------- State ----------
+  const state = {
+    lastUrl: null,
+    lastMethod: null,
+    lastContentType: null,
+    lastMessage: null,
+    lastRecords: null,
+    lastPromptType: null,
+    lastBody: null,
+    rawText: "",
+    activeIndex: -1,
+    bodyIsCustom: false,
+  };
+
+  // ---------- Helpers ----------
+  const $ = (id) => document.getElementById(id);
+
+  const setStatus = (kind, text) => {
+    const dot = $("statusDot");
+    const label = $("statusText");
+    dot.classList.remove("ok","bad");
+    if (kind === "ok") dot.classList.add("ok");
+    else if (kind === "bad") dot.classList.add("bad");
+    label.textContent = text;
+  };
+
+  const bytesToHuman = (bytes) => {
+    if (!Number.isFinite(bytes)) return "—";
+    const units = ["B","KB","MB","GB"];
+    let i = 0;
+    let n = bytes;
+    while (n >= 1024 && i < units.length-1) { n /= 1024; i++; }
+    return `${n.toFixed(i===0?0:1)} ${units[i]}`;
+  };
+
+  const nowLocal = () => new Date().toLocaleString(undefined);
+
+  const escapeHtml = (s) => String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
+
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+  function getPromptTypeLabel(){
+    const sel = $("promptType");
+    const opt = sel?.selectedOptions?.[0];
+    return (opt?.textContent || "").trim();
+  }
+
+  function updateResponseTitle(){
+    const label = getPromptTypeLabel();
+    const el = $("responseTitle");
+    if (!el) return;
+    el.textContent = label ? `Prompt: ${label}` : "";
+  }
+
+  // ---------- Endpoints (URL presets) ----------
+  const ENDPOINTS_KEY = "wrv_endpoints_v1";
+  const DEFAULT_ENDPOINTS = [
+    {
+      id: "reddit",
+      name: "Reddit",
+      url: "https://hook.eu1.make.com/pkekfq38ably1c3hbn0prfj0uoomzby9"
+    }
+  ];
+
+  const readEndpoints = () => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(ENDPOINTS_KEY) || "[]");
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    } catch {}
+    return DEFAULT_ENDPOINTS.slice();
+  };
+  const writeEndpoints = (items) => localStorage.setItem(ENDPOINTS_KEY, JSON.stringify(items));
+
+  let endpoints = readEndpoints();
+
+  function populateEndpointSelect(selectedId){
+    const sel = $("endpointSelect");
+    sel.innerHTML = endpoints.map(e =>
+      `<option value="${escapeHtml(e.id)}">${escapeHtml(e.name || e.url)}</option>`
+    ).join("");
+
+    if (selectedId && endpoints.some(e => e.id === selectedId)) sel.value = selectedId;
+    else sel.value = endpoints[0]?.id || "";
+
+    syncEndpointPreviewAndEditor();
+  }
+
+  function getSelectedEndpoint(){
+    const id = $("endpointSelect").value;
+    return endpoints.find(e => e.id === id) || endpoints[0] || null;
+  }
+
+  function getCurrentUrl(){
+    return (getSelectedEndpoint()?.url || "").trim();
+  }
+
+  function ensureEndpointForUrl(url, nameHint){
+    const u = (url || "").trim();
+    if (!u) return null;
+
+    const existing = endpoints.find(e => (e.url || "").trim() === u);
+    if (existing) {
+      $("endpointSelect").value = existing.id;
+      syncEndpointPreviewAndEditor();
+      return existing;
+    }
+
+    const id = `custom_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const entry = { id, name: nameHint || "Custom", url: u };
+    endpoints.push(entry);
+    writeEndpoints(endpoints);
+    populateEndpointSelect(id);
+    return entry;
+  }
+
+  const setEndpointExpanded = (expanded) => {
+    $("endpointWrap").style.display = expanded ? "block" : "none";
+    $("endpointToggleBtn").textContent = expanded ? "−" : "+";
+    $("endpointToggleBtn").setAttribute("aria-expanded", expanded ? "true" : "false");
+  };
+
+  function syncEndpointPreviewAndEditor(){
+    const ep = getSelectedEndpoint();
+    $("endpointUrlPreview").textContent = ep?.url || "";
+    $("endpointName").value = ep?.name || "";
+    $("endpointUrl").value = ep?.url || "";
+    $("endpointHint").textContent = ep ? `Selected: ${ep.name || ep.id}` : "";
+  }
+
+  $("endpointToggleBtn").addEventListener("click", () => {
+    const expanded = $("endpointToggleBtn").getAttribute("aria-expanded") === "true";
+    setEndpointExpanded(!expanded);
+  });
+
+  $("endpointSelect").addEventListener("change", () => {
+    syncEndpointPreviewAndEditor();
+  });
+
+  $("endpointAddBtn").addEventListener("click", () => {
+    const name = $("endpointName").value.trim() || "(unnamed)";
+    const url = $("endpointUrl").value.trim();
+    if (!url) { alert("Missing endpoint URL"); return; }
+
+    const id = `ep_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    endpoints.push({ id, name, url });
+    writeEndpoints(endpoints);
+    populateEndpointSelect(id);
+  });
+
+  $("endpointUpdateBtn").addEventListener("click", () => {
+    const ep = getSelectedEndpoint();
+    if (!ep) return;
+    const name = $("endpointName").value.trim() || ep.name || "(unnamed)";
+    const url = $("endpointUrl").value.trim();
+    if (!url) { alert("Missing endpoint URL"); return; }
+
+    ep.name = name;
+    ep.url = url;
+    writeEndpoints(endpoints);
+    populateEndpointSelect(ep.id);
+  });
+
+  $("endpointDeleteBtn").addEventListener("click", () => {
+    const ep = getSelectedEndpoint();
+    if (!ep) return;
+    if (endpoints.length <= 1) { alert("You must keep at least one endpoint."); return; }
+    if (!confirm(`Delete endpoint '${ep.name || ep.id}'?`)) return;
+
+    endpoints = endpoints.filter(e => e.id !== ep.id);
+    writeEndpoints(endpoints);
+    populateEndpointSelect(endpoints[0]?.id);
+  });
+
+  // Initialize endpoints UI
+  populateEndpointSelect();
+  setEndpointExpanded(false);
+
+  function setLoading(isLoading, subtitle){
+    const overlay = $("loadingOverlay");
+    overlay.style.display = isLoading ? "flex" : "none";
+    overlay.setAttribute("aria-busy", isLoading ? "true" : "false");
+    $("loadingTitle").textContent = isLoading ? "Waiting for response…" : "";
+    $("loadingSub").textContent = isLoading ? (subtitle || "") : "";
+  }
+
+  // ---------- Request body toggle + generation ----------
+  const setBodyExpanded = (expanded) => {
+    $("bodyWrap").style.display = expanded ? "block" : "none";
+    $("bodyToggleBtn").textContent = expanded ? "−" : "+";
+    $("bodyToggleBtn").setAttribute("aria-expanded", expanded ? "true" : "false");
+  };
+
+  function buildGeneratedBodyText(contentType, message){
+    const msg = String(message ?? "");
+    if (contentType === "text/plain") return msg;
+    const recordsRaw = $("records")?.value;
+    const records = Number.parseInt(String(recordsRaw ?? "").trim(), 10);
+    const promptType = $("promptType")?.value;
+    return JSON.stringify(
+      {
+        message: msg,
+        records: Number.isFinite(records) ? records : undefined,
+        prompt_type: (promptType && String(promptType).trim()) ? String(promptType).trim() : undefined,
+        ts: "{{now}}"
+      },
+      (k, v) => (v === undefined ? undefined : v),
+      2
+    );
+  }
+
+  function syncBodyFromMessage(){
+    if (state.bodyIsCustom) return;
+    const ct = $("contentType").value;
+    const msg = $("message").value;
+    $("body").value = buildGeneratedBodyText(ct, msg);
+  }
+
+  $("records").addEventListener("input", () => {
+    syncBodyFromMessage();
+  });
+
+  $("promptType").addEventListener("change", () => {
+    syncBodyFromMessage();
+    updateResponseTitle();
+  });
+
+  $("bodyToggleBtn").addEventListener("click", () => {
+    // If the body is generated (not custom), keep it in sync when expanding.
+    syncBodyFromMessage();
+    const expanded = $("bodyToggleBtn").getAttribute("aria-expanded") === "true";
+    setBodyExpanded(!expanded);
+  });
+
+  $("message").addEventListener("input", () => {
+    syncBodyFromMessage();
+  });
+
+  $("contentType").addEventListener("change", () => {
+    state.bodyIsCustom = false;
+    syncBodyFromMessage();
+  });
+
+  $("body").addEventListener("input", () => {
+    // If the user edits the body textarea, treat it as a custom body.
+    state.bodyIsCustom = true;
+  });
+
+  // ---------- Tabs ----------
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+
+      const tab = t.dataset.tab;
+      $("pane-preview").classList.toggle("active", tab === "preview");
+      $("pane-raw").classList.toggle("active", tab === "raw");
+      $("pane-json").classList.toggle("active", tab === "json");
+      $("pane-history").classList.toggle("active", tab === "history");
+
+      // Refresh highlighting for current view
+      runSearch();
+      focusActiveMatch();
+    });
+  });
+
+  // ---------- Theme ----------
+  const themeBtn = $("themeBtn");
+  const THEME_KEY = "wrv_theme";
+  const applyTheme = (t) => {
+    document.documentElement.classList.toggle("dark", t === "dark");
+    themeBtn.textContent = t === "dark" ? "☀️" : "🌙";
+  };
+  applyTheme(localStorage.getItem(THEME_KEY) || "light");
+  themeBtn.addEventListener("click", () => {
+    const next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+    runSearch();
+    focusActiveMatch();
+  });
+
+  // ---------- History ----------
+  const HISTORY_KEY = "wrv_history_v1";
+  const readHistory = () => {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
+    catch { return []; }
+  };
+  const writeHistory = (items) => localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 20)));
+
+  function addToHistory(item){
+    const items = readHistory();
+    items.unshift(item);
+    // Deduplicate by hash-ish key (url+method+body+status+time)
+    const seen = new Set();
+    const uniq = [];
+    for (const it of items){
+      const key = `${it.url}|${it.method}|${it.contentType}|${it.body}|${it.status}|${it.receivedAt}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniq.push(it);
+    }
+    writeHistory(uniq);
+    renderHistory();
+  }
+
+  function renderHistory(){
+    const list = $("historyList");
+    const empty = $("historyEmpty");
+    const items = readHistory();
+    list.innerHTML = "";
+    empty.style.display = items.length ? "none" : "block";
+
+    items.forEach((it, idx) => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.style.boxShadow = "none";
+      div.style.borderRadius = "14px";
+      div.style.cursor = "pointer";
+      div.innerHTML = `
+        <div class="section" style="border-bottom:none; padding:12px">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <span class="pill" style="background:rgba(15,23,42,.03); border-color:var(--border); color:var(--text)">
+              <span class="dot ${it.ok ? "ok" : "bad"}"></span>
+              ${it.ok ? "OK" : "ERR"} · ${escapeHtml(it.status)}
+            </span>
+            <span class="pill" style="background:rgba(15,23,42,.03); border-color:var(--border); color:var(--text)">
+              ${escapeHtml(it.method)} · ${escapeHtml(it.ms)}ms · ${escapeHtml(it.size)}
+            </span>
+            <span class="mini muted" style="margin-left:auto">${escapeHtml(it.receivedAt)}</span>
+          </div>
+          <div class="mini" style="margin-top:8px">
+            <b>URL:</b> <span class="muted">${escapeHtml(it.url)}</span>
+          </div>
+        </div>
+      `;
+      div.addEventListener("click", () => restoreFromHistory(idx));
+      list.appendChild(div);
+    });
+  }
+
+  function restoreFromHistory(index){
+    const items = readHistory();
+    const it = items[index];
+    if (!it) return;
+
+    ensureEndpointForUrl(it.url, "Restored");
+    $("method").value = it.method;
+    $("contentType").value = it.contentType;
+    $("message").value = it.message ?? "";
+    $("records").value = String(it.records ?? "20");
+    $("promptType").value = it.promptType ?? "reseach";
+    updateResponseTitle();
+    $("body").value = it.body;
+    state.bodyIsCustom = true;
+    setBodyExpanded(false);
+
+    // Restore response
+    state.rawText = it.responseText || "";
+    $("ms").textContent = String(it.ms ?? "—");
+    $("size").textContent = it.size ?? "—";
+    $("httpStatus").textContent = it.status ?? "—";
+    $("respType").textContent = it.respType ?? "—";
+    $("receivedAt").textContent = it.receivedAt ?? "—";
+
+    setStatus(it.ok ? "ok" : "bad", it.ok ? "Success (restored)" : "Error (restored)");
+
+    setLoading(false, "");
+
+    // Render preview & raw & json
+    renderResponseToPanes(it.responseText || "", it.respType || "unknown");
+
+    // Headers
+    renderHeaders(it.headers || []);
+
+    disableResponseActions(false);
+    $("sendAgainBtn").disabled = false;
+
+    runSearch(true);
+  }
+
+  $("clearHistoryBtn").addEventListener("click", () => {
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+  });
+
+  renderHistory();
+
+  // ---------- Send ----------
+  const sendBtn = $("sendBtn");
+  const sendAgainBtn = $("sendAgainBtn");
+  sendBtn.addEventListener("click", () => doSend(true));
+  sendAgainBtn.addEventListener("click", () => doSend(false));
+
+  async function doSend(useCurrentFields){
+    const url = useCurrentFields ? getCurrentUrl() : state.lastUrl;
+    const method = useCurrentFields ? $("method").value : state.lastMethod;
+    const contentType = useCurrentFields ? $("contentType").value : state.lastContentType;
+    const message = useCurrentFields ? $("message").value : state.lastMessage;
+    const recordsRaw = useCurrentFields ? $("records").value : state.lastRecords;
+    const records = Number.parseInt(String(recordsRaw ?? "").trim(), 10);
+    const promptType = useCurrentFields ? $("promptType").value : state.lastPromptType;
+    let body = useCurrentFields ? $("body").value : state.lastBody;
+
+    if (!url){
+      alert("Missing endpoint URL");
+      return;
+    }
+
+    // If body is not custom, keep it synced with message (so Send again remains consistent)
+    if (!state.bodyIsCustom) {
+      body = buildGeneratedBodyText(contentType, message);
+      $("body").value = body;
+    }
+
+    body = (body || "").replaceAll("{{now}}", new Date().toISOString());
+
+    state.lastUrl = url;
+    state.lastMethod = method;
+    state.lastContentType = contentType;
+    state.lastMessage = message;
+    state.lastRecords = String(Number.isFinite(records) ? records : "");
+    state.lastPromptType = String(promptType ?? "");
+    state.lastBody = body;
+
+    setStatus(null, "Sending…");
+    $("httpStatus").textContent = "—";
+    $("respType").textContent = "—";
+    $("receivedAt").textContent = "—";
+    $("ms").textContent = "—";
+    $("size").textContent = "—";
+    renderHeaders([]); // clear
+    disableResponseActions(true);
+
+    state.rawText = "";
+    $("countBadge").textContent = "0";
+    $("matches").textContent = "0";
+
+    setLoading(true, `${method} ${url}`);
+
+    // Show waiting info in the result viewer immediately (for Send / Send again).
+    $("raw").textContent = "Waiting for response…";
+    $("json").textContent = "Waiting for response…";
+    $("frame").srcdoc = `
+      <html><head><meta charset="utf-8"/>
+      <style>
+        body{font-family:system-ui; padding:16px; line-height:1.55}
+        .box{border:1px solid #cbd5e1; background:#f8fafc; color:#0f172a; padding:14px; border-radius:14px}
+        .muted{color:#64748b}
+        code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace}
+      </style>
+      </head><body>
+        <div class="box">
+          <b>Waiting for response…</b><br/><br/>
+          <span class="muted">${escapeHtml(method)} ${escapeHtml(url)}</span>
+        </div>
+      </body></html>
+    `;
+
+    const t0 = performance.now();
+
+    try{
+      const opts = { method, headers: {} };
+
+      let finalUrl = url;
+      if (method === "GET") {
+        // GET requests cannot reliably send a body in browsers; send message via query params.
+        const u = new URL(url);
+        u.searchParams.set("message", String(message ?? ""));
+        if (Number.isFinite(records)) u.searchParams.set("records", String(records));
+        if ((promptType ?? "").toString().trim()) u.searchParams.set("prompt_type", String(promptType).trim());
+        u.searchParams.set("ts", new Date().toISOString());
+        finalUrl = u.toString();
+      } else {
+        opts.headers["Content-Type"] = contentType;
+        if (contentType === "application/json") {
+          // Ensure message is present in the JSON body.
+          let obj;
+          try { obj = JSON.parse(body); }
+          catch { throw new Error("Body is not valid JSON. Fix it and try again."); }
+          obj = (obj && typeof obj === "object") ? obj : {};
+          obj.message = String(message ?? "");
+          if (Number.isFinite(records)) obj.records = records;
+          if ((promptType ?? "").toString().trim()) obj.prompt_type = String(promptType).trim();
+          if (!obj.ts) obj.ts = new Date().toISOString();
+          body = JSON.stringify(obj);
+        } else {
+          body = String(message ?? body ?? "");
+          // For non-JSON bodies, still include records as a query param if provided.
+          if (Number.isFinite(records)) {
+            const u = new URL(url);
+            u.searchParams.set("records", String(records));
+            finalUrl = u.toString();
+          }
+          if ((promptType ?? "").toString().trim()) {
+            const u = new URL(finalUrl);
+            u.searchParams.set("prompt_type", String(promptType).trim());
+            finalUrl = u.toString();
+          }
+        }
+        opts.body = body;
+      }
+
+      const res = await fetch(finalUrl, opts);
+      const ms = Math.round(performance.now() - t0);
+
+      const respType = res.headers.get("content-type") || "unknown";
+      const text = await res.text();
+
+      state.rawText = text;
+
+      // Headers array
+      const headers = [];
+      res.headers.forEach((v, k) => headers.push([k, v]));
+      headers.sort((a,b) => a[0].localeCompare(b[0]));
+      renderHeaders(headers);
+
+      $("ms").textContent = String(ms);
+      $("size").textContent = bytesToHuman(new Blob([text]).size);
+      $("httpStatus").textContent = `${res.status} ${res.statusText || ""}`.trim();
+      $("respType").textContent = respType;
+      $("receivedAt").textContent = nowLocal();
+
+      const ok = res.ok;
+      setStatus(ok ? "ok" : "bad", ok ? "Success" : "Error");
+
+      setLoading(false, "");
+
+      renderResponseToPanes(text, respType);
+
+      const hasBody = (text || "").trim().length > 0;
+      disableResponseActions(!hasBody);
+      sendAgainBtn.disabled = false;
+
+      // History save
+      addToHistory({
+        url, method, contentType, message,
+        records: Number.isFinite(records) ? records : null,
+        promptType: (promptType ?? "").toString().trim() || null,
+        body,
+        ok,
+        status: `${res.status} ${res.statusText || ""}`.trim(),
+        respType,
+        ms,
+        size: bytesToHuman(new Blob([text]).size),
+        receivedAt: nowLocal(),
+        headers,
+        responseText: text
+      });
+
+      runSearch(true);
+
+    }catch(err){
+      const ms = Math.round(performance.now() - t0);
+      $("ms").textContent = String(ms);
+      setStatus("bad", "Request Failed");
+
+      setLoading(false, "");
+      $("raw").textContent = String(err?.message || err);
+      $("json").textContent = "";
+
+      $("frame").srcdoc = `
+        <html><head><meta charset="utf-8"/>
+        <style>
+          body{font-family:system-ui; padding:16px; line-height:1.55}
+          .box{border:1px solid #fecaca; background:#fff1f2; color:#7f1d1d; padding:14px; border-radius:14px}
+          code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace}
+        </style>
+        </head><body>
+          <div class="box">
+            <b>Request error</b><br/><br/>
+            <code>${escapeHtml(String(err?.message || err))}</code><br/><br/>
+            <small>If this is a CORS error in the browser, you’ll need a small proxy to call the webhook.</small>
+          </div>
+        </body></html>
+      `;
+
+      disableResponseActions(true);
+      sendAgainBtn.disabled = state.lastUrl ? false : true;
+
+      runSearch(true);
+    }
+  }
+
+  // --- Response parsing helpers (for Preview extraction) ---
+  function repairJsonControlChars(input){
+    // Fix unescaped control characters inside JSON strings (e.g. raw newlines in "answer").
+    // This is a best-effort repair for APIs that return invalid JSON.
+    const s = String(input ?? "");
+    let out = "";
+    let inStr = false;
+    let esc = false;
+
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+
+      if (esc) {
+        out += ch;
+        esc = false;
+        continue;
+      }
+
+      if (ch === "\\") {
+        out += ch;
+        if (inStr) esc = true;
+        continue;
+      }
+
+      if (ch === '"') {
+        out += ch;
+        inStr = !inStr;
+        continue;
+      }
+
+      if (inStr) {
+        const code = ch.charCodeAt(0);
+        if (ch === "\n") { out += "\\n"; continue; }
+        if (ch === "\r") { out += "\\r"; continue; }
+        if (ch === "\t") { out += "\\t"; continue; }
+        if (code >= 0 && code < 0x20) {
+          out += "\\u" + code.toString(16).padStart(4, "0");
+          continue;
+        }
+      }
+
+      out += ch;
+    }
+
+    return out;
+  }
+
+  function parseJsonTolerant(text){
+    const s = String(text ?? "").trim();
+    if (!s) return { ok: false, value: null };
+    try {
+      return { ok: true, value: JSON.parse(s) };
+    } catch {
+      // try a repaired version
+      try {
+        return { ok: true, value: JSON.parse(repairJsonControlChars(s)) };
+      } catch {
+        return { ok: false, value: null };
+      }
+    }
+  }
+
+  function extractTextFromParsed(parsed){
+    if (typeof parsed === "string") return parsed;
+    if (!parsed || typeof parsed !== "object") return null;
+
+    // Common webhook shapes
+    if (typeof parsed.answer === "string") return parsed.answer;
+    if (typeof parsed.text === "string") return parsed.text;
+    if (typeof parsed.result === "string") return parsed.result;
+    if (typeof parsed.message === "string") return parsed.message;
+    if (typeof parsed.output === "string") return parsed.output;
+    if (typeof parsed.content === "string") return parsed.content;
+
+    // OpenAI-like shapes
+    const c0 = parsed?.choices?.[0];
+    const openAiCandidate =
+      (typeof c0?.message?.content === "string" && c0.message.content) ||
+      (typeof c0?.delta?.content === "string" && c0.delta.content) ||
+      null;
+    if (openAiCandidate) return openAiCandidate;
+
+    return null;
+  }
+
+  function extractJsonStringField(raw, fieldNames){
+    // Extracts the value of a JSON string field from *possibly invalid* JSON,
+    // including when the string contains raw newlines.
+    const s = String(raw ?? "");
+    for (const name of fieldNames) {
+      const re = new RegExp('"' + name.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&") + '"\\s*:\\s*', "i");
+      const m = re.exec(s);
+      if (!m) continue;
+      let i = m.index + m[0].length;
+      while (i < s.length && /\s/.test(s[i])) i++;
+      if (s[i] !== '"') continue;
+
+      // parse a JSON-ish string starting at the quote
+      i++; // after opening quote
+      let out = "";
+      while (i < s.length) {
+        const ch = s[i];
+        if (ch === '"') return out;
+        if (ch === "\\") {
+          const nxt = s[i + 1];
+          if (nxt == null) { out += "\\"; i++; continue; }
+          if (nxt === '"') { out += '"'; i += 2; continue; }
+          if (nxt === "\\") { out += "\\"; i += 2; continue; }
+          if (nxt === "/") { out += "/"; i += 2; continue; }
+          if (nxt === "b") { out += "\b"; i += 2; continue; }
+          if (nxt === "f") { out += "\f"; i += 2; continue; }
+          if (nxt === "n") { out += "\n"; i += 2; continue; }
+          if (nxt === "r") { out += "\r"; i += 2; continue; }
+          if (nxt === "t") { out += "\t"; i += 2; continue; }
+          if (nxt === "u") {
+            const hex = s.slice(i + 2, i + 6);
+            if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+              out += String.fromCharCode(parseInt(hex, 16));
+              i += 6;
+              continue;
+            }
+          }
+          // unknown escape, keep the next char
+          out += nxt;
+          i += 2;
+          continue;
+        }
+        out += ch;
+        i++;
+      }
+    }
+    return null;
+  }
+
+  function extractAnswerForPreview(text, respType){
+    const raw = String(text ?? "");
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    // 1) NDJSON / SSE-style multipart (common: one JSON object per line, or lines prefixed with "data:")
+    const lines = trimmed.split(/\r?\n/);
+    if (lines.length > 1) {
+      const parts = [];
+      let sawStructured = false;
+      for (let line of lines) {
+        line = String(line ?? "").trim();
+        if (!line) continue;
+        if (line.startsWith(":")) continue; // SSE comment
+        if (/^(event|id|retry)\s*:/i.test(line)) continue;
+        if (/^data\s*:/i.test(line)) line = line.replace(/^data\s*:/i, "").trim();
+        if (line === "[DONE]") continue;
+
+        const parsedLine = parseJsonTolerant(line);
+        if (parsedLine.ok) {
+          sawStructured = true;
+          let v = parsedLine.value;
+          if (typeof v === "string") {
+            const inner = parseJsonTolerant(v);
+            if (inner.ok) v = inner.value;
+          }
+          const c = extractTextFromParsed(v);
+          if (typeof c === "string" && c.trim()) parts.push(c);
+        } else {
+          // Sometimes each line is already plain text but still wrapped.
+          const c = extractJsonStringField(line, ["answer", "text", "result"]);
+          if (typeof c === "string" && c.trim()) parts.push(c);
+        }
+      }
+      if (sawStructured && parts.length) return parts.join("");
+    }
+
+    // 2) Full-body JSON (or JSON-ish)
+    const maybeJson = (respType || "").includes("application/json") ||
+      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+      (trimmed.startsWith('"') && trimmed.endsWith('"'));
+    if (maybeJson) {
+      const parsed = parseJsonTolerant(trimmed);
+      if (parsed.ok) {
+        let v = parsed.value;
+        if (typeof v === "string") {
+          const inner = parseJsonTolerant(v);
+          if (inner.ok) v = inner.value;
+        }
+        const c = extractTextFromParsed(v);
+        if (typeof c === "string" && c.trim()) return c;
+      }
+    }
+
+    // 3) Fallback: pull just the string value of answer/text/result from raw text
+    const field = extractJsonStringField(trimmed, ["answer", "text", "result"]);
+    if (typeof field === "string" && field.trim()) return field;
+
+    return null;
+  }
+
+  function renderResponseToPanes(text, respType){
+    const trimmed = (text || "").trim();
+    if (!trimmed) {
+      const msg = "— No data returned by the webhook —";
+
+      // RAW
+      $("raw").innerHTML = escapeHtml(msg);
+
+      // PREVIEW
+      $("frame").srcdoc = `
+        <html><head><meta charset="utf-8"/>
+        <style>
+          body{font-family:system-ui; padding:16px; line-height:1.55}
+          .box{border:1px solid #e2e8f0; background:#f8fafc; color:#0f172a; padding:14px; border-radius:14px}
+          .muted{color:#64748b}
+        </style>
+        </head><body>
+          <div class="box">
+            <b>No data returned</b><br/><br/>
+            <span class="muted">The webhook responded, but the response body was empty.</span>
+          </div>
+        </body></html>
+      `;
+
+      // JSON
+      $("json").textContent = msg;
+      return;
+    }
+
+    // RAW
+    $("raw").innerHTML = escapeHtml(text);
+
+    // PREVIEW
+    const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(text) || (respType || "").includes("text/html");
+    let previewHeading = "Text Response";
+    let previewText = text;
+
+    // If response contains an answer wrapper (even invalid JSON / multipart), show just the answer in the preview.
+    // (Raw + JSON tabs still show the full payload.)
+    if (!looksLikeHtml) {
+      const extracted = extractAnswerForPreview(text, respType);
+      if (typeof extracted === "string" && extracted.trim()) {
+        previewHeading = "Answer";
+        previewText = extracted;
+      }
+    }
+
+    const srcdoc = looksLikeHtml ? text : `
+      <html><head><meta charset="utf-8"/>
+      <style>
+        body{font-family:system-ui; padding:16px; line-height:1.55}
+        pre{white-space:pre-wrap; word-break:break-word; background:#f6f7fb; padding:12px; border-radius:12px}
+        mark{background:#fde68a; padding:0 .12em; border-radius:.25em}
+        mark.active{outline:2px solid #2563eb; background:#fbbf24}
+      </style>
+      </head><body>
+        <h3>${escapeHtml(previewHeading)}</h3>
+        <pre>${escapeHtml(previewText)}</pre>
+      </body></html>
+    `;
+    $("frame").srcdoc = srcdoc;
+
+    // JSON pane (best-effort)
+    let jsonPretty = "";
+    try{
+      if ((respType || "").includes("application/json")) {
+        jsonPretty = JSON.stringify(JSON.parse(text), null, 2);
+      } else {
+        // Try parse anyway if response looks like JSON
+        if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))){
+          jsonPretty = JSON.stringify(JSON.parse(trimmed), null, 2);
+        }
+      }
+    }catch{
+      jsonPretty = "";
+    }
+    $("json").textContent = jsonPretty || "— (Not JSON)";
+  }
+
+  function renderHeaders(headers){
+    const tbody = $("headersTbody");
+    if (!headers || !headers.length){
+      tbody.innerHTML = `<tr><td class="muted" colspan="2">—</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = headers.map(([k,v]) =>
+      `<tr><td><code>${escapeHtml(k)}</code></td><td class="muted">${escapeHtml(v)}</td></tr>`
+    ).join("");
+  }
+
+  function disableResponseActions(disabled){
+    $("copyBtn").disabled = disabled;
+    $("downloadBtn").disabled = disabled;
+  }
+
+  // ---------- Copy / Download ----------
+  $("copyBtn").addEventListener("click", async () => {
+    try{
+      await navigator.clipboard.writeText(state.rawText || "");
+    }catch{
+      alert("Copy failed (your browser might block clipboard access).");
+    }
+  });
+
+  $("downloadBtn").addEventListener("click", () => {
+    const blob = new Blob([state.rawText || ""], {type:"text/html;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "webhook-response.html";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 0);
+  });
+
+  // ---------- Search + Highlight ----------
+  const q = $("q");
+  const prevBtn = $("prevBtn");
+  const nextBtn = $("nextBtn");
+  const clearSearchBtn = $("clearSearchBtn");
+
+  q.addEventListener("input", () => runSearch(true));
+  prevBtn.addEventListener("click", () => moveActive(-1));
+  nextBtn.addEventListener("click", () => moveActive(1));
+  clearSearchBtn.addEventListener("click", () => { q.value = ""; runSearch(true); });
+
+  function runSearch(resetIndex = false){
+    const query = q.value.trim();
+    if (resetIndex) state.activeIndex = -1;
+
+    highlightRaw(query);
+    highlightPreview(query);
+
+    const count = query ? countOccurrences(state.rawText || "", query) : 0;
+
+    $("countBadge").textContent = String(count);
+    $("matches").textContent = String(count);
+    const has = count > 0;
+
+    prevBtn.disabled = !has;
+    nextBtn.disabled = !has;
+    clearSearchBtn.disabled = !query;
+
+    if (has && state.activeIndex === -1) state.activeIndex = 0;
+    focusActiveMatch();
+  }
+
+  function countOccurrences(text, needle){
+    if (!needle) return 0;
+    const t = (text || "").toLowerCase();
+    const n = needle.toLowerCase();
+    let i = 0, c = 0;
+    while (true){
+      const p = t.indexOf(n, i);
+      if (p === -1) break;
+      c++; i = p + n.length;
+    }
+    return c;
+  }
+
+  function highlightRaw(query){
+    const pre = $("raw");
+    const text = state.rawText || "";
+    if (!query){
+      pre.innerHTML = escapeHtml(text);
+      return;
+    }
+    const re = new RegExp(escapeRegExp(query), "gi");
+    pre.innerHTML = escapeHtml(text).replace(re, (m) => `<mark>${m}</mark>`);
+  }
+
+  function highlightPreview(query){
+    const frame = $("frame");
+    const doc = frame.contentDocument;
+    if (!doc) return;
+
+    removeMarks(doc);
+    if (!query) return;
+
+    const walker = doc.createTreeWalker(doc.body || doc, NodeFilter.SHOW_TEXT);
+    const re = new RegExp(escapeRegExp(query), "gi");
+
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    nodes.forEach(node => {
+      const val = node.nodeValue;
+      if (!val) return;
+      if (!re.test(val)) { re.lastIndex = 0; return; }
+      re.lastIndex = 0;
+
+      const frag = doc.createDocumentFragment();
+      let last = 0;
+      let m;
+      while ((m = re.exec(val)) !== null){
+        const start = m.index;
+        const end = start + m[0].length;
+
+        frag.appendChild(doc.createTextNode(val.slice(last, start)));
+        const mark = doc.createElement("mark");
+        mark.textContent = val.slice(start, end);
+        frag.appendChild(mark);
+
+        last = end;
+        if (re.lastIndex === m.index) re.lastIndex++;
+      }
+      frag.appendChild(doc.createTextNode(val.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function removeMarks(doc){
+    const marks = Array.from(doc.querySelectorAll("mark"));
+    for (const m of marks){
+      const text = doc.createTextNode(m.textContent || "");
+      m.replaceWith(text);
+    }
+    doc.body && doc.body.normalize();
+  }
+
+  function clearActiveMarks(){
+    $("raw").querySelectorAll("mark.active").forEach(m => m.classList.remove("active"));
+    const doc = $("frame").contentDocument;
+    if (doc) doc.querySelectorAll("mark.active").forEach(m => m.classList.remove("active"));
+  }
+
+  function focusActiveMatch(){
+    const query = q.value.trim();
+    if (!query) { clearActiveMarks(); return; }
+
+    clearActiveMarks();
+
+    const activeTab = document.querySelector(".tab.active")?.dataset.tab || "preview";
+    if (activeTab === "raw" || activeTab === "json"){
+      const root = activeTab === "json" ? $("json") : $("raw");
+      // JSON pane doesn't insert <mark>, so only Raw supports active focus.
+      if (activeTab === "json") return;
+
+      const marks = Array.from(root.querySelectorAll("mark"));
+      if (!marks.length) return;
+      const idx = clamp(state.activeIndex, 0, marks.length-1);
+      state.activeIndex = idx;
+      marks[idx].classList.add("active");
+      marks[idx].scrollIntoView({block:"center"});
+    } else {
+      const doc = $("frame").contentDocument;
+      if (!doc) return;
+      const marks = Array.from(doc.querySelectorAll("mark"));
+      if (!marks.length) return;
+      const idx = clamp(state.activeIndex, 0, marks.length-1);
+      state.activeIndex = idx;
+      marks[idx].classList.add("active");
+      marks[idx].scrollIntoView({block:"center", behavior:"smooth"});
+    }
+  }
+
+  function moveActive(delta){
+    const query = q.value.trim();
+    if (!query) return;
+
+    const activeTab = document.querySelector(".tab.active")?.dataset.tab || "preview";
+    let total = 0;
+
+    if (activeTab === "raw"){
+      total = $("raw").querySelectorAll("mark").length;
+    } else {
+      const doc = $("frame").contentDocument;
+      total = doc ? doc.querySelectorAll("mark").length : 0;
+    }
+    if (!total) return;
+
+    state.activeIndex = (state.activeIndex + delta + total) % total;
+    focusActiveMatch();
+  }
+
+  // Initial state
+  setStatus(null, "Ready");
+  updateResponseTitle();
+  runSearch(true);
+</script>
+</body>
+</html>
